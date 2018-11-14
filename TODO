@@ -38,3 +38,15 @@
     int Dir_Size(char* path)
 
     int Dir_Read(char* path, void* buffer, int size)
+
+
+// Notes from PDF Provided
+    // First part 
+    Record some generic information inside the disk 
+    -> Make this generic information be the very first block(SECTOR)
+    --> SUPERBLOCK
+        -> generic information about file system
+        -> This generic information will be a (MAGIC NUMBER)
+    --> Write this MAGIC NUMBER inside the SUPERBLOCK 
+    --> If we boot up the same file system check to see if we have our same MAGIC NUMBER
+    --> Assume file system is corrupt if the MAGIC NUMBER is not found.
