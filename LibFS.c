@@ -103,8 +103,7 @@ static char bs_filename[1024];
 /* the following functions are internal helper functions */
 
 // check magic number in the superblock; return 1 if OK, and 0 if not
-static int check_magic()
-{
+static int check_magic() {
   char buf[SECTOR_SIZE];
   if(Disk_Read(SUPERBLOCK_START_SECTOR, buf) < 0)
     return 0;
@@ -115,24 +114,21 @@ static int check_magic()
 // initialize a bitmap with 'num' sectors starting from 'start'
 // sector; all bits should be set to zero except that the first
 // 'nbits' number of bits are set to one
-static void bitmap_init(int start, int num, int nbits)
-{
+static void bitmap_init(int start, int num, int nbits) {
   /* YOUR CODE */
 }
 
 // set the first unused bit from a bitmap of 'nbits' bits (flip the
 // first zero appeared in the bitmap to one) and return its location;
 // return -1 if the bitmap is already full (no more zeros)
-static int bitmap_first_unused(int start, int num, int nbits)
-{
+static int bitmap_first_unused(int start, int num, int nbits) {
   /* YOUR CODE */
   return -1;
 }
 
 // reset the i-th bit of a bitmap with 'num' sectors starting from
 // 'start' sector; return 0 if successful, -1 otherwise
-static int bitmap_reset(int start, int num, int ibit)
-{
+static int bitmap_reset(int start, int num, int ibit) {
   /* YOUR CODE */
   return -1;
 }
@@ -141,8 +137,7 @@ static int bitmap_reset(int start, int num, int ibit)
 // characters for a file name include letters (case sensitive),
 // numbers, dots, dashes, and underscores; and a legal file name
 // should not be more than MAX_NAME-1 in length
-static int illegal_filename(char* name)
-{
+static int illegal_filename(char* name) {
   /* YOUR CODE */
   return 1; 
 }
@@ -155,9 +150,7 @@ static int illegal_filename(char* name)
 // the child inode; the function returns -1 if no such file is found;
 // it returns -2 is something else is wrong (such as parent is not
 // directory, or there's read error, etc.)
-static int find_child_inode(int parent_inode, char* fname,
-			    int *cached_inode_sector, char* cached_inode_buffer)
-{
+static int find_child_inode(int parent_inode, char* fname, int *cached_inode_sector, char* cached_inode_buffer) {
   int cached_start_entry = ((*cached_inode_sector)-INODE_TABLE_START_SECTOR)*INODES_PER_SECTOR;
   int offset = parent_inode-cached_start_entry;
   assert(0 <= offset && offset < INODES_PER_SECTOR);
@@ -204,8 +197,7 @@ static int find_child_inode(int parent_inode, char* fname,
 // the last file/directory is not in its parent directory, in which
 // case, 'last_inode' points to -1; if the function returns -1, it
 // means that we cannot follow the path
-static int follow_path(char* path, int* last_inode, char* last_fname)
-{
+static int follow_path(char* path, int* last_inode, char* last_fname) {
   if(!path) {
     dprintf("... invalid path\n");
     return -1;
@@ -266,8 +258,7 @@ static int follow_path(char* path, int* last_inode, char* last_fname)
 
 // add a new file or directory (determined by 'type') of given name
 // 'file' under parent directory represented by 'parent_inode'
-int add_inode(int type, int parent_inode, char* file)
-{
+int add_inode(int type, int parent_inode, char* file) {
   // get a new inode for child
   int child_inode = bitmap_first_unused(INODE_BITMAP_START_SECTOR, INODE_BITMAP_SECTORS, INODE_BITMAP_SIZE);
   if(child_inode < 0) {
@@ -352,8 +343,7 @@ int add_inode(int type, int parent_inode, char* file)
 
 // used by both File_Create() and Dir_Create(); type=0 is file, type=1
 // is directory
-int create_file_or_directory(int type, char* pathname)
-{
+int create_file_or_directory(int type, char* pathname) {
   int child_inode;
   char last_fname[MAX_NAME];
   int parent_inode = follow_path(pathname, &child_inode, last_fname);
@@ -382,8 +372,7 @@ int create_file_or_directory(int type, char* pathname)
 // remove the child from parent; the function is called by both
 // File_Unlink() and Dir_Unlink(); the function returns 0 if success,
 // -1 if general error, -2 if directory not empty, -3 if wrong type
-int remove_inode(int type, int parent_inode, int child_inode)
-{
+int remove_inode(int type, int parent_inode, int child_inode) {
   /* YOUR CODE */
   return -1;
 }
@@ -397,8 +386,7 @@ typedef struct _open_file {
 static open_file_t open_files[MAX_OPEN_FILES];
 
 // return true if the file pointed to by inode has already been open
-int is_file_open(int inode)
-{
+int is_file_open(int inode) {
   for(int i=0; i<MAX_OPEN_FILES; i++) {
     if(open_files[i].inode == inode)
       return 1;
@@ -407,8 +395,7 @@ int is_file_open(int inode)
 }
 
 // return a new file descriptor not used; -1 if full
-int new_file_fd()
-{
+int new_file_fd() {
   for(int i=0; i<MAX_OPEN_FILES; i++) {
     if(open_files[i].inode <= 0)
       return i;
@@ -418,8 +405,7 @@ int new_file_fd()
 
 /* end of internal helper functions, start of API functions */
 
-int FS_Boot(char* backstore_fname)
-{
+int FS_Boot(char* backstore_fname) {
   dprintf("FS_Boot('%s'):\n", backstore_fname);
   // initialize a new disk (this is a simulated disk)
   if(Disk_Init() < 0) {
@@ -537,8 +523,7 @@ int FS_Boot(char* backstore_fname)
   }
 }
 
-int FS_Sync()
-{
+int FS_Sync() {
   if(Disk_Save(bs_filename) < 0) {
     // if can't write to file, something's wrong with the backstore
     dprintf("FS_Sync():\n... failed to save disk to file '%s'\n", bs_filename);
@@ -551,20 +536,17 @@ int FS_Sync()
   }
 }
 
-int File_Create(char* file)
-{
+int File_Create(char* file) {
   dprintf("File_Create('%s'):\n", file);
   return create_file_or_directory(0, file);
 }
 
-int File_Unlink(char* file)
-{
+int File_Unlink(char* file) {
   /* YOUR CODE */
   return -1;
 }
 
-int File_Open(char* file)
-{
+int File_Open(char* file) {
   dprintf("File_Open('%s'):\n", file);
   int fd = new_file_fd();
   if(fd < 0) {
@@ -608,26 +590,22 @@ int File_Open(char* file)
   }  
 }
 
-int File_Read(int fd, void* buffer, int size)
-{
+int File_Read(int fd, void* buffer, int size) {
   /* YOUR CODE */
   return -1;
 }
 
-int File_Write(int fd, void* buffer, int size)
-{
+int File_Write(int fd, void* buffer, int size) {
   /* YOUR CODE */
   return -1;
 }
 
-int File_Seek(int fd, int offset)
-{
+int File_Seek(int fd, int offset) {
   /* YOUR CODE */
   return 0;
 }
 
-int File_Close(int fd)
-{
+int File_Close(int fd) {
   dprintf("File_Close(%d):\n", fd);
   if(0 > fd || fd > MAX_OPEN_FILES) {
     dprintf("... fd=%d out of bound\n", fd);
@@ -645,26 +623,22 @@ int File_Close(int fd)
   return 0;
 }
 
-int Dir_Create(char* path)
-{
+int Dir_Create(char* path) {
   dprintf("Dir_Create('%s'):\n", path);
   return create_file_or_directory(1, path);
 }
 
-int Dir_Unlink(char* path)
-{
+int Dir_Unlink(char* path) {
   /* YOUR CODE */
   return -1;
 }
 
-int Dir_Size(char* path)
-{
+int Dir_Size(char* path) {
   /* YOUR CODE */
   return 0;
 }
 
-int Dir_Read(char* path, void* buffer, int size)
-{
+int Dir_Read(char* path, void* buffer, int size) {
   /* YOUR CODE */
   return -1;
 }

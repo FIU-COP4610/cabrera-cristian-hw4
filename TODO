@@ -1,0 +1,40 @@
+// Functions To Define Inside of LibFS.c:
+
+    // initialize a bitmap with 'num' sectors starting from 'start'
+    // sector; all bits should be set to zero except that the first
+    // 'nbits' number of bits are set to one
+    static void bitmap_init(int start, int num, int nbits)
+
+    // set the first unused bit from a bitmap of 'nbits' bits (flip the
+    // first zero appeared in the bitmap to one) and return its location;
+    // return -1 if the bitmap is already full (no more zeros)
+    static int bitmap_first_unused(int start, int num, int nbits)
+    
+    // reset the i-th bit of a bitmap with 'num' sectors starting from
+    // 'start' sector; return 0 if successful, -1 otherwise
+    static int bitmap_reset(int start, int num, int ibit)
+
+    // return 1 if the file name is illegal; otherwise, return 0; legal
+    // characters for a file name include letters (case sensitive),
+    // numbers, dots, dashes, and underscores; and a legal file name
+    // should not be more than MAX_NAME-1 in length
+    static int illegal_filename(char* name)
+
+    // remove the child from parent; the function is called by both
+    // File_Unlink() and Dir_Unlink(); the function returns 0 if success,
+    // -1 if general error, -2 if directory not empty, -3 if wrong type
+    int remove_inode(int type, int parent_inode, int child_inode)
+    
+    int File_Unlink(char* file)
+    
+    int File_Read(int fd, void* buffer, int size)
+
+    int File_Write(int fd, void* buffer, int size)
+
+    int File_Seek(int fd, int offset)
+
+    int Dir_Unlink(char* path) 
+
+    int Dir_Size(char* path)
+
+    int Dir_Read(char* path, void* buffer, int size)
