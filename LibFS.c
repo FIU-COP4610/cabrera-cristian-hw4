@@ -115,7 +115,15 @@ static int check_magic() {
 // sector; all bits should be set to zero except that the first
 // 'nbits' number of bits are set to one
 static void bitmap_init(int start, int num, int nbits) {
-  /* YOUR CODE */
+
+	int ByteToBit = SECTOR_SIZE*8;
+	for(int i = start; i < start+num; i++){
+		if(nbits > ByteToBit){
+			nbits -= ByteToBit;		
+		}else {
+			nbits = 0;		
+		}	
+	}
 }
 
 // set the first unused bit from a bitmap of 'nbits' bits (flip the
