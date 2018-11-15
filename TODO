@@ -1,3 +1,10 @@
+// Understanding LibDisk.c 
+    Disk_Init()
+    -> disk is of type sector_t and on in line 32 they are allocating the  
+    memory necessary. 
+    -> return -1 if someting went wrong and return 0 if memory allocation went 
+    right.
+
 // Functions To Define Inside of LibFS.c:
 
     // initialize a bitmap with 'num' sectors starting from 'start'
@@ -38,3 +45,49 @@
     int Dir_Size(char* path)
 
     int Dir_Read(char* path, void* buffer, int size)
+
+|-----------------------------------------------------------------------------|
+    // Notes from PDF Provided
+|-----------------------------------------------------------------------------|
+  ON-DISK DATA STRUCTURES    
+    // First part 
+    Record some generic information inside the disk 
+    -> Make this generic information be the very first block(SECTOR)
+    --> SUPERBLOCK
+        -> generic information about file system
+        -> This generic information will be a (MAGIC NUMBER)
+    --> Write this MAGIC NUMBER inside the SUPERBLOCK 
+    --> If we boot up the same file system check to see if we have our same 
+        MAGIC NUMBER
+    --> Assume file system is corrupt if the MAGIC NUMBER is not found.
+|-----------------------------------------------------------------------------|
+    // Second part
+    Keep track of all files and directories on the disk 
+    -> Each file or directory points/corresponds to an inode
+    -> Inode is a data structure (file size, type, etc)
+    --> Inodes are stored consecutively; Can be refered to them by an index
+    --> Using a bitmap to track which inodes have been allocated
+    -> Maximum of 1000 files/directories we will only need 1000 bits for the 
+       bitmap 
+|-----------------------------------------------------------------------------|
+    // Third Part 
+    Content of a file/directory is stored in a data block 
+    -> Each data block is assumed be be same size as disk sector 
+    --> bitmap needs to be used to track which sectors of disk have been 
+        allocated
+|-----------------------------------------------------------------------------|
+    // Fourth Part
+|-----------------------------------------------------------------------------|
+    // Fifth part
+|-----------------------------------------------------------------------------|
+  BOOTING UP
+
+  DISK PERSISTENCE
+
+  DIRECTORIES AND FILES 
+  
+  OPEN FILE TABLE
+
+  CURRENT READ/WRITE LOCATION OF AN OPEN FILE 
+
+  MISCELLANEOUS NOTES 

@@ -32,22 +32,22 @@ void noprintf(char* str, ...) {}
 // the total number of bytes and sectors needed for the inode bitmap;
 // we use one bit for each inode (whether it's a file or directory) to
 // indicate whether the particular inode in the inode table is in use
-#define INODE_BITMAP_SIZE ((MAX_FILES+7)/8)
-#define INODE_BITMAP_SECTORS ((INODE_BITMAP_SIZE+SECTOR_SIZE-1)/SECTOR_SIZE)
+#define INODE_BITMAP_SIZE ((MAX_FILES+7)/8)                                                         /* This equals (1000+7)/8 = 125.875 */
+#define INODE_BITMAP_SECTORS ((INODE_BITMAP_SIZE+SECTOR_SIZE-1)/SECTOR_SIZE)                        /* This equals (125.875+512-1)/512 = 1.243*/
 
 // 3. the sector bitmap (one or more sectors), which indicates whether
 // the particular sector in the disk is currently in use
-#define SECTOR_BITMAP_START_SECTOR (INODE_BITMAP_START_SECTOR+INODE_BITMAP_SECTORS)
+#define SECTOR_BITMAP_START_SECTOR (INODE_BITMAP_START_SECTOR+INODE_BITMAP_SECTORS)                 /* This equals (1+1.243) = 2.243 */
 
 // the total number of bytes and sectors needed for the data block
 // bitmap (we call it the sector bitmap); we use one bit for each
 // sector of the disk to indicate whether the sector is in use or not
-#define SECTOR_BITMAP_SIZE ((TOTAL_SECTORS+7)/8)
-#define SECTOR_BITMAP_SECTORS ((SECTOR_BITMAP_SIZE+SECTOR_SIZE-1)/SECTOR_SIZE)
+#define SECTOR_BITMAP_SIZE ((TOTAL_SECTORS+7)/8)                                                    /* This equals (10000+7)/8 = 1250.875 */
+#define SECTOR_BITMAP_SECTORS ((SECTOR_BITMAP_SIZE+SECTOR_SIZE-1)/SECTOR_SIZE)                      /* This equals (1250.875+512-1)/512 = 1762.873*/
 
 // 4. the inode table (one or more sectors), which contains the inodes
 // stored consecutively
-#define INODE_TABLE_START_SECTOR (SECTOR_BITMAP_START_SECTOR+SECTOR_BITMAP_SECTORS)
+#define INODE_TABLE_START_SECTOR (SECTOR_BITMAP_START_SECTOR+SECTOR_BITMAP_SECTORS)                 /* This equals (2.243+1762.873) = 1765.116 */
 
 // an inode is used to represent each file or directory; the data
 // structure supposedly contains all necessary information about the
@@ -65,12 +65,12 @@ typedef struct _inode {
 // are as many entries in the table as the number of files allowed in
 // the system; the inode bitmap (#2) indicates whether the entries are
 // current in use or not
-#define INODES_PER_SECTOR (SECTOR_SIZE/sizeof(inode_t))
-#define INODE_TABLE_SECTORS ((MAX_FILES+INODES_PER_SECTOR-1)/INODES_PER_SECTOR)
+#define INODES_PER_SECTOR (SECTOR_SIZE/sizeof(inode_t))                                            
+#define INODE_TABLE_SECTORS ((MAX_FILES+INODES_PER_SECTOR-1)/INODES_PER_SECTOR)                     
 
 // 5. the data blocks; all the rest sectors are reserved for data
 // blocks for the content of files and directories
-#define DATABLOCK_START_SECTOR (INODE_TABLE_START_SECTOR+INODE_TABLE_SECTORS)
+#define DATABLOCK_START_SECTOR (INODE_TABLE_START_SECTOR+INODE_TABLE_SECTORS)                      
 
 // other file related definitions
 
@@ -92,7 +92,7 @@ typedef struct _dirent {
 } dirent_t;
 
 // the number of directory entries that can be contained in a sector
-#define DIRENTS_PER_SECTOR (SECTOR_SIZE/sizeof(dirent_t))
+#define DIRENTS_PER_SECTOR (SECTOR_SIZE/sizeof(dirent_t))                                         /* This equals  */
 
 // global errno value here
 int osErrno;
@@ -115,7 +115,15 @@ static int check_magic() {
 // sector; all bits should be set to zero except that the first
 // 'nbits' number of bits are set to one
 static void bitmap_init(int start, int num, int nbits) {
-  /* YOUR CODE */
+
+	int ByteToBit = SECTOR_SIZE*8;
+	for(int i = start; i < start+num; i++){
+		if(nbits > ByteToBit){
+			nbits -= ByteToBit;		
+		}else {
+			nbits = 0;		
+		}	
+	}
 }
 
 // set the first unused bit from a bitmap of 'nbits' bits (flip the
