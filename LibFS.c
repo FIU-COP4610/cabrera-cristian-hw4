@@ -139,7 +139,7 @@ static int bitmap_reset(int start, int num, int ibit) {
 // should not be more than MAX_NAME-1 in length
 static int illegal_filename(char* name) {
   /* YOUR CODE */
-  return 1; 
+  return 1;
 }
 
 // return the child inode of the given file name 'fname' from the
@@ -162,7 +162,7 @@ static int find_child_inode(int parent_inode, char* fname, int *cached_inode_sec
     return -2;
   }
 
-  int nentries = parent->size; // remaining number of directory entries 
+  int nentries = parent->size; // remaining number of directory entries
   int idx = 0;
   while(nentries > 0) {
     char buf[SECTOR_SIZE]; // cached content of directory entries
@@ -206,21 +206,21 @@ static int follow_path(char* path, int* last_inode, char* last_fname) {
     dprintf("... '%s' not absolute path\n", path);
     return -1;
   }
-  
+
   // make a copy of the path (skip leading '/'); this is necessary
   // since the path is going to be modified by strsep()
-  char pathstore[MAX_PATH]; 
+  char pathstore[MAX_PATH];
   strncpy(pathstore, path+1, MAX_PATH-1);
   pathstore[MAX_PATH-1] = '\0'; // for safety
   char* lpath = pathstore;
-  
+
   int parent_inode = -1, child_inode = 0; // start from root
   // cache the disk sector containing the root inode
   int cached_sector = INODE_TABLE_START_SECTOR;
   char cached_buffer[SECTOR_SIZE];
   if(Disk_Read(cached_sector, cached_buffer) < 0) return -1;
   dprintf("... load inode table for root from disk sector %d\n", cached_sector);
-  
+
   // for each file/directory name separated by '/'
   char* token;
   while((token = strsep(&lpath, "/")) != NULL) {
@@ -228,7 +228,7 @@ static int follow_path(char* path, int* last_inode, char* last_fname) {
     if(*token == '\0') continue; // multiple '/' ignored
     if(illegal_filename(token)) {
       dprintf("... illegal file name: '%s'\n", token);
-      return -1; 
+      return -1;
     }
     if(child_inode < 0) {
       // regardless whether child_inode was not found previously, or
@@ -263,7 +263,7 @@ int add_inode(int type, int parent_inode, char* file) {
   int child_inode = bitmap_first_unused(INODE_BITMAP_START_SECTOR, INODE_BITMAP_SECTORS, INODE_BITMAP_SIZE);
   if(child_inode < 0) {
     dprintf("... error: inode table is full\n");
-    return -1; 
+    return -1;
   }
   dprintf("... new child inode %d\n", child_inode);
 
@@ -337,7 +337,7 @@ int add_inode(int type, int parent_inode, char* file) {
   parent->size++;
   if(Disk_Write(inode_sector, inode_buffer) < 0) return -1;
   dprintf("... update parent inode on disk sector %d\n", inode_sector);
-  
+
   return 0;
 }
 
@@ -414,12 +414,12 @@ int FS_Boot(char* backstore_fname) {
     return -1;
   }
   dprintf("... disk initialized\n");
-  
+
   // we should copy the filename down; if not, the user may change the
   // content pointed to by 'backstore_fname' after calling this function
   strncpy(bs_filename, backstore_fname, 1024);
   bs_filename[1023] = '\0'; // for safety
-  
+
   // we first try to load disk from this file
   if(Disk_Load(bs_filename) < 0) {
     dprintf("... load disk from file '%s' failed\n", bs_filename);
@@ -444,14 +444,14 @@ int FS_Boot(char* backstore_fname) {
       bitmap_init(INODE_BITMAP_START_SECTOR, INODE_BITMAP_SECTORS, 1);
       dprintf("... formatted inode bitmap (start=%d, num=%d)\n",
 	     (int)INODE_BITMAP_START_SECTOR, (int)INODE_BITMAP_SECTORS);
-      
+
       // format sector bitmap (reserve the first few sectors to
       // superblock, inode bitmap, sector bitmap, and inode table)
       bitmap_init(SECTOR_BITMAP_START_SECTOR, SECTOR_BITMAP_SECTORS,
 		  DATABLOCK_START_SECTOR);
       dprintf("... formatted sector bitmap (start=%d, num=%d)\n",
 	     (int)SECTOR_BITMAP_START_SECTOR, (int)SECTOR_BITMAP_SECTORS);
-      
+
       // format inode tables
       for(int i=0; i<INODE_TABLE_SECTORS; i++) {
 	memset(buf, 0, SECTOR_SIZE);
@@ -468,7 +468,7 @@ int FS_Boot(char* backstore_fname) {
       }
       dprintf("... formatted inode table (start=%d, num=%d)\n",
 	     (int)INODE_TABLE_START_SECTOR, (int)INODE_TABLE_SECTORS);
-      
+
       // we need to synchronize the disk to the backstore file (so
       // that we don't lose the formatted disk)
       if(Disk_Save(bs_filename) < 0) {
@@ -485,12 +485,12 @@ int FS_Boot(char* backstore_fname) {
     } else {
       // something wrong loading the file: invalid param or error reading
       dprintf("... couldn't read file '%s', boot failed\n", bs_filename);
-      osErrno = E_GENERAL; 
+      osErrno = E_GENERAL;
       return -1;
     }
   } else {
     dprintf("... load disk from file '%s' successful\n", bs_filename);
-    
+
     // we successfully loaded the disk, we need to do two more checks,
     // first the file size must be exactly the size as expected (thiis
     // supposedly should be folded in Disk_Load(); and it's not)
@@ -507,14 +507,14 @@ int FS_Boot(char* backstore_fname) {
       return -1;
     }
     dprintf("... check size of file '%s' successful\n", bs_filename);
-    
+
     // check magic
     if(check_magic()) {
       // everything's good by now, boot is successful
       dprintf("... check magic successful\n");
       memset(open_files, 0, MAX_OPEN_FILES*sizeof(open_file_t));
       return 0;
-    } else {      
+    } else {
       // mismatched magic number
       dprintf("... check magic failed, boot failed\n");
       osErrno = E_GENERAL;
@@ -587,7 +587,7 @@ int File_Open(char* file) {
     dprintf("... file '%s' is not found\n", file);
     osErrno = E_NO_SUCH_FILE;
     return -1;
-  }  
+  }
 }
 
 int File_Read(int fd, void* buffer, int size) {
@@ -642,4 +642,3 @@ int Dir_Read(char* path, void* buffer, int size) {
   /* YOUR CODE */
   return -1;
 }
-
