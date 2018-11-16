@@ -65,12 +65,12 @@ typedef struct _inode {
 // are as many entries in the table as the number of files allowed in
 // the system; the inode bitmap (#2) indicates whether the entries are
 // current in use or not
-#define INODES_PER_SECTOR (SECTOR_SIZE/sizeof(inode_t))                                            
-#define INODE_TABLE_SECTORS ((MAX_FILES+INODES_PER_SECTOR-1)/INODES_PER_SECTOR)                     
+#define INODES_PER_SECTOR (SECTOR_SIZE/sizeof(inode_t))
+#define INODE_TABLE_SECTORS ((MAX_FILES+INODES_PER_SECTOR-1)/INODES_PER_SECTOR)
 
 // 5. the data blocks; all the rest sectors are reserved for data
 // blocks for the content of files and directories
-#define DATABLOCK_START_SECTOR (INODE_TABLE_START_SECTOR+INODE_TABLE_SECTORS)                      
+#define DATABLOCK_START_SECTOR (INODE_TABLE_START_SECTOR+INODE_TABLE_SECTORS)
 
 // other file related definitions
 
@@ -116,13 +116,15 @@ static int check_magic() {
 // 'nbits' number of bits are set to one
 static void bitmap_init(int start, int num, int nbits) {
 
-	int ByteToBit = SECTOR_SIZE*8;
+	int totalBits = SECTOR_SIZE*8;
 	for(int i = start; i < start+num; i++){
-		if(nbits > ByteToBit){
-			nbits -= ByteToBit;		
+		if(nbits > totalBits){
+      //save_bits_to_bitmap
+			nbits -= totalBits;
 		}else {
-			nbits = 0;		
-		}	
+      //save_bits_to_bitmap
+			nbits = 0;
+		}
 	}
 }
 
@@ -130,15 +132,89 @@ static void bitmap_init(int start, int num, int nbits) {
 // first zero appeared in the bitmap to one) and return its location;
 // return -1 if the bitmap is already full (no more zeros)
 static int bitmap_first_unused(int start, int num, int nbits) {
-  /* YOUR CODE */
+
+  int totalBits = nbits * 8; //total number of bits
+  char readBuffer[SECTOR_SIZE];
+  int counter = 0;
+
+  for (int i = start; i < start+num; i++){
+    int totalBits = SECTOR_SIZE * 8;
+    int totalBytes = SECTOR_SIZE;
+
+    Disk_Read(start, readBuffer);
+
+    if(nbits > totalBits){
+      nbits =  totalBits
+    }
+
+    if(maxBytes%8 > 0){
+      totalBytes++;
+    }
+
+    for(int i = 0; i < totalBytes; i++){
+      char byteBuffer = readBuffer[i];
+
+      if(byteBuffer != (char)255){
+        unsigned char container = ~byteBuffer;
+
+        int bitAddress = 0;
+        int size = 8;
+
+        if(i == (totalBytes-1)){ size = totalBits - nbits; }
+
+        while (container != 0) {
+          if(--size < 0){ return -1; }
+
+          bitAddress++;
+          container = container >> 1;
+        }
+
+        if(bitAddress == 0){ bitAddress = 7; }
+
+        container = ipow(2, bitAddress-1);
+        readBuffer[i] = readBuffer[i] | container;
+
+        Disk_Write(i, readBuffer);
+
+        return((counter*SECTOR_SIZE*8) + (i*8) + (8-bitAddress));
+      }
+    }
+    counter++;
+  }
+
   return -1;
 }
 
 // reset the i-th bit of a bitmap with 'num' sectors starting from
 // 'start' sector; return 0 if successful, -1 otherwise
 static int bitmap_reset(int start, int num, int ibit) {
-  /* YOUR CODE */
-  return -1;
+
+  int totalBits = SECTOR_SIZE*8;
+  int tmp = ibit -1;
+  int lastBit = tmp % totalBits;
+  int address = (tmp/totalBits) + start;
+
+  if(ibit > totalBits) { return -1; }
+
+  if(lastBit == 0){
+    address -= 1;
+    lastBit = totalBits;
+  }
+
+  char loadBuffer[SECTOR_SIZE];
+  Disk_Read(address, loadBuffer);
+
+  int byteAddress = address/8;
+  int bitAddress = address%8;
+
+  int tmp2 = loadBuffer[byteAddress];
+  int allOnes = 255 - ipow(2, 7-bitAddress);
+
+
+  loadBuffer[byteAddress] = tmp2 & allOnes;
+  Disk_Write(address, loadBuffer);
+
+  return 0;
 }
 
 // return 1 if the file name is illegal; otherwise, return 0; legal
