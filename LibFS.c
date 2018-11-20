@@ -222,7 +222,15 @@ static int bitmap_reset(int start, int num, int ibit) {
 // numbers, dots, dashes, and underscores; and a legal file name
 // should not be more than MAX_NAME-1 in length
 static int illegal_filename(char* name) {
-  /* YOUR CODE */
+
+  if(strlen(name) > MAX_NAME - 1) { return 1; }
+
+  for(int i = 0; i < strlen(name); i++){
+    int newName = (int)name[i]; //get the ASCII value of name[1]
+    if(((newName>=48 && newName<=57) || (newName>=65 && newName<=90) ||
+    (newName>=97 && newName<=122) || (newName>=45 && newName<=46) ||
+    newName==96)) { return 0; }
+  }
   return 1;
 }
 
@@ -457,7 +465,8 @@ int create_file_or_directory(int type, char* pathname) {
 // File_Unlink() and Dir_Unlink(); the function returns 0 if success,
 // -1 if general error, -2 if directory not empty, -3 if wrong type
 int remove_inode(int type, int parent_inode, int child_inode) {
-  /* YOUR CODE */
+
+  	/* YOUR CODE */
   return -1;
 }
 
@@ -626,7 +635,19 @@ int File_Create(char* file) {
 }
 
 int File_Unlink(char* file) {
-  /* YOUR CODE */
+
+  int child;
+  char name[MAX_NAME];
+  int root = follow_path(pathname, &child, name);
+
+  if(child < 1){
+    osErrno = E_NO_SUCH_FILE;
+    return -1;
+  }else if(is_file_open(child) == 1){
+    osErrno = E_FILE_IN_USE;
+    return -1;
+  }else if(remove_inode(0, root, child) >= 0){ return 0; }
+  
   return -1;
 }
 
