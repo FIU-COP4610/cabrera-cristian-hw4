@@ -17,6 +17,10 @@ FS_Sync() is the next thing called in main.c
  -> else then the file bs_filename was successfully saved to the disk
 --------------------------------------------------------------------------------------------------------
 Execution of simple-test.c
+Same as FS_Boot inside of Main.c
+ -> File_Create() is then called and based on the type passed to create_file_or_directory in the return 
+    value then we will get an error or sucess. 
+ -> create_file_or_directory 0 is for a file and 1 is for a directory
 
 --------------------------------------------------------------------------------------------------------
 // Understanding LibDisk.c 

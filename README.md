@@ -1,6 +1,19 @@
 # cabrera-cristian-hw4
-Understand how file systems work(Directory Hierarchy and StorageManagement) Understand Performance issues file systems have to deal with. 
-
+## Developers
+- Marcial Cabrera -- mcabr122@fiu.edu
+- Cristian Cepeda -- ccepe014@fiu.edu
+## Compile
+```
+> make -f Makefile.LibDisk
+> make -f Makefile.LibFS
+> make
+```
+## Run 
+```
+./main.exe disk
+./simple-test.exe disk
+```
+## README provided by professor 
 This directory contains a partial implementation of the simple file
 system for homework assignment 5. The partial implementation is in
 LibFS.c; it's heavily commented code so hopefully the implementation

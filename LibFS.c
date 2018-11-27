@@ -113,17 +113,19 @@ static int check_magic() {
 }
 
 /*
+* 
 * HELPER FUNCTION
+*
 */
 int toPower(int num, int pow){
 	int answer = 1;
 
 	for(;;){
-		if(pow & 1){
+		if(pow & 1){                                                                                    // logical AND and pow equals all 1111 1111 then run code
 			answer = answer * num;
-			pow >>= 1;
+			pow = pow >> 1;                                                                               // *NOTE* right shift the bits of pow 1 to the right
 		}	
-		if(!pow){
+		if(!pow){                                                                                       // if all 0 then then return the power of 2
 			break;
 			num = num * num;
 		}
@@ -134,16 +136,12 @@ int toPower(int num, int pow){
 // initialize a bitmap with 'num' sectors starting from 'start'
 // sector; all bits should be set to zero except that the first
 // 'nbits' number of bits are set to one
-static void bitmap_init(int start, int num, int nbits) {
+static void bitmap_init(int start, int num, int nbits) {                                              // *NOTE* continue working on this method to set the bits on the disk.
 	int totalBits = SECTOR_SIZE*8;
-
 	for(int i = start; i < start+num; i++){
 		if(nbits > totalBits){
-      //save_bits_to_bitmap
 			nbits -= totalBits;
 		}else {
-
-      //save_bits_to_bitmap
 			nbits = 0;
 		}
 	}
@@ -192,7 +190,7 @@ static int bitmap_first_unused(int start, int num, int nbits) {
 
         if(bitAddress == 0){ bitAddress = 7; }
 
-        container = toPower(2, bitAddress-1);
+        container = toPower(2, bitAddress-1);                                                     // this will be 2 ^ 6 
         readBuffer[i] = readBuffer[i] | container;
 
         Disk_Write(i, readBuffer);
@@ -459,7 +457,7 @@ int add_inode(int type, int parent_inode, char* file) {
 int create_file_or_directory(int type, char* pathname) {
   int child_inode;
   char last_fname[MAX_NAME];
-  int parent_inode = follow_path(pathname, &child_inode, last_fname);
+  int parent_inode = follow_path(pathname, &child_inode, last_fname); 
   if(parent_inode >= 0) {
     if(child_inode >= 0) {
       dprintf("... file/directory '%s' already exists, failed to create\n", pathname);
@@ -484,15 +482,15 @@ int create_file_or_directory(int type, char* pathname) {
 
 /*
 *
-HELPER FUNCTION
+* HELPER FUNCTION
 *
 */
 inode_t* inode_Get(int childNode){
 
-  int sector =  (INODE_TABLE_START_SECTOR + childNode) / INODES_PER_SECTOR;
-  char storeBuffer[SECTOR_SIZE];
+  int sector = (INODE_TABLE_START_SECTOR + (childNode/INODES_PER_SECTOR));                          // Find each index of a node
+  char storeBuffer[SECTOR_SIZE];                                                                    // *NOTE* Create a buffer to store the node
 
-  Disk_Read(sector, storeBuffer);
+  Disk_Read(sector, storeBuffer);                                                                 
 
   int location = childNode - ((sector - INODE_TABLE_SECTORS) * INODES_PER_SECTOR);
   inode_t* child =  (inode_t*)(storeBuffer + location * sizeof(inode_t));
@@ -673,7 +671,7 @@ int FS_Boot(char* backstore_fname) {
        osErrno = E_GENERAL;
        return -1;
       }
-   } else {                                                                // *NOTE* we execute fread() and read the disk into memory  
+   } else {                                                                 // *NOTE* we execute fread() and read the disk into memory  
     dprintf("... load disk from file '%s' successful\n", bs_filename);     
     // we successfully loaded the disk, we need to do two more checks,
     // first the file size must be exactly the size as expected (thiis
@@ -693,10 +691,10 @@ int FS_Boot(char* backstore_fname) {
     dprintf("... check size of file '%s' successful\n", bs_filename);
 
     // check magic
-    if(check_magic()) {                                                      // *NOTE* see if magic number is present
+    if(check_magic()) {                                                     // *NOTE* see if magic number is present
       // everything's good by now, boot is successful
       dprintf("... check magic successful\n");
-      memset(open_files, 0, MAX_OPEN_FILES*sizeof(open_file_t));             // *NOTE* 0 is copied into the open file and location Max_open_files
+      memset(open_files, 0, MAX_OPEN_FILES*sizeof(open_file_t));            // *NOTE* 0 is copied into the open file and location Max_open_files
       return 0;
     } else {
       // mismatched magic number
@@ -720,11 +718,16 @@ int FS_Sync() {
   }
 }
 
-int File_Create(char* file) {
+                                                                            // *NOTE* After Checking if the file system can be Booted up inside of FS_Boot 
+                                                                            // then this method is called within simple-test.c  So that we can create
+                                                                            // two files. first-file and second-file
+int File_Create(char* file) {                                               // and both files should be created sus
   dprintf("File_Create('%s'):\n", file);
-  return create_file_or_directory(0, file);
-}
+  return create_file_or_directory(0, file);                                 // *NOTE* (type, pathname) if 0 then its a file 
+}                                                                           // if its a 1 then its a directory 
 
+                                                                            // *NOTE* Method is called inside of simple-test.c 
+                                                                            // Its trying to unlink the file Named /first-file
 int File_Unlink(char* file) {
 
   int child;
