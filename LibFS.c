@@ -8,6 +8,7 @@
 
 // set to 1 to have detailed debug print-outs and 0 to have none
 #define FSDEBUG 0
+#define FAIL -1
 
 #if FSDEBUG
 #define dprintf printf
@@ -32,22 +33,22 @@ void noprintf(char* str, ...) {}
 // the total number of bytes and sectors needed for the inode bitmap;
 // we use one bit for each inode (whether it's a file or directory) to
 // indicate whether the particular inode in the inode table is in use
-#define INODE_BITMAP_SIZE ((MAX_FILES+7)/8)
-#define INODE_BITMAP_SECTORS ((INODE_BITMAP_SIZE+SECTOR_SIZE-1)/SECTOR_SIZE)
+#define INODE_BITMAP_SIZE ((MAX_FILES+7)/8)                                                         /* This equals (1000+7)/8 = 125.875 */
+#define INODE_BITMAP_SECTORS ((INODE_BITMAP_SIZE+SECTOR_SIZE-1)/SECTOR_SIZE)                        /* This equals (125.875+512-1)/512 = 1.243*/
 
 // 3. the sector bitmap (one or more sectors), which indicates whether
 // the particular sector in the disk is currently in use
-#define SECTOR_BITMAP_START_SECTOR (INODE_BITMAP_START_SECTOR+INODE_BITMAP_SECTORS)
+#define SECTOR_BITMAP_START_SECTOR (INODE_BITMAP_START_SECTOR+INODE_BITMAP_SECTORS)                 /* This equals (1+1.243) = 2.243 */
 
 // the total number of bytes and sectors needed for the data block
 // bitmap (we call it the sector bitmap); we use one bit for each
 // sector of the disk to indicate whether the sector is in use or not
-#define SECTOR_BITMAP_SIZE ((TOTAL_SECTORS+7)/8)
-#define SECTOR_BITMAP_SECTORS ((SECTOR_BITMAP_SIZE+SECTOR_SIZE-1)/SECTOR_SIZE)
+#define SECTOR_BITMAP_SIZE ((TOTAL_SECTORS+7)/8)                                                    /* This equals (10000+7)/8 = 1250.875 */
+#define SECTOR_BITMAP_SECTORS ((SECTOR_BITMAP_SIZE+SECTOR_SIZE-1)/SECTOR_SIZE)                      /* This equals (1250.875+512-1)/512 = 1762.873*/
 
 // 4. the inode table (one or more sectors), which contains the inodes
 // stored consecutively
-#define INODE_TABLE_START_SECTOR (SECTOR_BITMAP_START_SECTOR+SECTOR_BITMAP_SECTORS)
+#define INODE_TABLE_START_SECTOR (SECTOR_BITMAP_START_SECTOR+SECTOR_BITMAP_SECTORS)                 /* This equals (2.243+1762.873) = 1765.116 */
 
 // an inode is used to represent each file or directory; the data
 // structure supposedly contains all necessary information about the
@@ -92,7 +93,7 @@ typedef struct _dirent {
 } dirent_t;
 
 // the number of directory entries that can be contained in a sector
-#define DIRENTS_PER_SECTOR (SECTOR_SIZE/sizeof(dirent_t))
+#define DIRENTS_PER_SECTOR (SECTOR_SIZE/sizeof(dirent_t))                                         /* This equals  */
 
 // global errno value here
 int osErrno;
@@ -115,22 +116,107 @@ static int check_magic() {
 // sector; all bits should be set to zero except that the first
 // 'nbits' number of bits are set to one
 static void bitmap_init(int start, int num, int nbits) {
-  /* YOUR CODE */
+	int totalBits = SECTOR_SIZE*8;
+
+	for(int i = start; i < start+num; i++){
+		if(nbits > totalBits){
+      //save_bits_to_bitmap
+			nbits -= totalBits;
+		}else {
+
+      //save_bits_to_bitmap
+			nbits = 0;
+		}
+	}
 }
 
 // set the first unused bit from a bitmap of 'nbits' bits (flip the
 // first zero appeared in the bitmap to one) and return its location;
 // return -1 if the bitmap is already full (no more zeros)
 static int bitmap_first_unused(int start, int num, int nbits) {
-  /* YOUR CODE */
+
+  int totalBits = nbits * 8; //total number of bits
+  char readBuffer[SECTOR_SIZE];
+  int counter = 0;
+
+  for (int i = start; i < start+num; i++){
+    int totalBits = SECTOR_SIZE * 8;
+    int totalBytes = SECTOR_SIZE;
+
+    Disk_Read(start, readBuffer);
+
+    if(nbits > totalBits){
+      nbits =  totalBits
+    }
+
+    if(maxBytes%8 > 0){
+      totalBytes++;
+    }
+
+    for(int i = 0; i < totalBytes; i++){
+      char byteBuffer = readBuffer[i];
+
+      if(byteBuffer != (char)255){
+        unsigned char container = ~byteBuffer;
+
+        int bitAddress = 0;
+        int size = 8;
+
+        if(i == (totalBytes-1)){ size = totalBits - nbits; }
+
+        while (container != 0) {
+          if(--size < 0){ return -1; }
+
+          bitAddress++;
+          container = container >> 1;
+        }
+
+        if(bitAddress == 0){ bitAddress = 7; }
+
+        container = ipow(2, bitAddress-1);
+        readBuffer[i] = readBuffer[i] | container;
+
+        Disk_Write(i, readBuffer);
+
+        return((counter*SECTOR_SIZE*8) + (i*8) + (8-bitAddress));
+      }
+    }
+    counter++;
+  }
+
   return -1;
 }
 
 // reset the i-th bit of a bitmap with 'num' sectors starting from
 // 'start' sector; return 0 if successful, -1 otherwise
 static int bitmap_reset(int start, int num, int ibit) {
-  /* YOUR CODE */
-  return -1;
+
+  int totalBits = SECTOR_SIZE*8;
+  int tmp = ibit -1;
+  int lastBit = tmp % totalBits;
+  int address = (tmp/totalBits) + start;
+
+  if(ibit > totalBits) { return -1; }
+
+  if(lastBit == 0){
+    address -= 1;
+    lastBit = totalBits;
+  }
+
+  char loadBuffer[SECTOR_SIZE];
+  Disk_Read(address, loadBuffer);
+
+  int byteAddress = address/8;
+  int bitAddress = address%8;
+
+  int tmp2 = loadBuffer[byteAddress];
+  int allOnes = 255 - ipow(2, 7-bitAddress);
+
+
+  loadBuffer[byteAddress] = tmp2 & allOnes;
+  Disk_Write(address, loadBuffer);
+
+  return 0;
 }
 
 // return 1 if the file name is illegal; otherwise, return 0; legal
@@ -138,8 +224,16 @@ static int bitmap_reset(int start, int num, int ibit) {
 // numbers, dots, dashes, and underscores; and a legal file name
 // should not be more than MAX_NAME-1 in length
 static int illegal_filename(char* name) {
-  /* YOUR CODE */
-  return 1; 
+
+  if(strlen(name) > MAX_NAME - 1) { return 1; }
+
+  for(int i = 0; i < strlen(name); i++){
+    int newName = (int)name[i]; //get the ASCII value of name[1]
+    if(((newName>=48 && newName<=57) || (newName>=65 && newName<=90) ||
+    (newName>=97 && newName<=122) || (newName>=45 && newName<=46) ||
+    newName==96)) { return 0; }
+  }
+  return 1;
 }
 
 // return the child inode of the given file name 'fname' from the
@@ -162,7 +256,7 @@ static int find_child_inode(int parent_inode, char* fname, int *cached_inode_sec
     return -2;
   }
 
-  int nentries = parent->size; // remaining number of directory entries 
+  int nentries = parent->size; // remaining number of directory entries
   int idx = 0;
   while(nentries > 0) {
     char buf[SECTOR_SIZE]; // cached content of directory entries
@@ -206,21 +300,21 @@ static int follow_path(char* path, int* last_inode, char* last_fname) {
     dprintf("... '%s' not absolute path\n", path);
     return -1;
   }
-  
+
   // make a copy of the path (skip leading '/'); this is necessary
   // since the path is going to be modified by strsep()
-  char pathstore[MAX_PATH]; 
+  char pathstore[MAX_PATH];
   strncpy(pathstore, path+1, MAX_PATH-1);
   pathstore[MAX_PATH-1] = '\0'; // for safety
   char* lpath = pathstore;
-  
+
   int parent_inode = -1, child_inode = 0; // start from root
   // cache the disk sector containing the root inode
   int cached_sector = INODE_TABLE_START_SECTOR;
   char cached_buffer[SECTOR_SIZE];
   if(Disk_Read(cached_sector, cached_buffer) < 0) return -1;
   dprintf("... load inode table for root from disk sector %d\n", cached_sector);
-  
+
   // for each file/directory name separated by '/'
   char* token;
   while((token = strsep(&lpath, "/")) != NULL) {
@@ -228,7 +322,7 @@ static int follow_path(char* path, int* last_inode, char* last_fname) {
     if(*token == '\0') continue; // multiple '/' ignored
     if(illegal_filename(token)) {
       dprintf("... illegal file name: '%s'\n", token);
-      return -1; 
+      return -1;
     }
     if(child_inode < 0) {
       // regardless whether child_inode was not found previously, or
@@ -263,7 +357,7 @@ int add_inode(int type, int parent_inode, char* file) {
   int child_inode = bitmap_first_unused(INODE_BITMAP_START_SECTOR, INODE_BITMAP_SECTORS, INODE_BITMAP_SIZE);
   if(child_inode < 0) {
     dprintf("... error: inode table is full\n");
-    return -1; 
+    return -1;
   }
   dprintf("... new child inode %d\n", child_inode);
 
@@ -337,7 +431,7 @@ int add_inode(int type, int parent_inode, char* file) {
   parent->size++;
   if(Disk_Write(inode_sector, inode_buffer) < 0) return -1;
   dprintf("... update parent inode on disk sector %d\n", inode_sector);
-  
+
   return 0;
 }
 
@@ -369,12 +463,85 @@ int create_file_or_directory(int type, char* pathname) {
   }
 }
 
+/*
+*
+HELPER FUNCTION
+*
+*/
+inode_t* inode_Get(int childNode){
+
+  int sector =  (INODE_TABLE_START_SECTOR + childNode) / INODES_PER_SECTOR;
+  char storeBuffer[SECTOR_SIZE];
+
+  Disk_Read(sector, storeBuffer);
+
+  int location = childNode - ((sector - INODE_TABLE_SECTORS) * INODES_PER_SECTOR);
+  inode_t* child =  (inode_t*)(storeBuffer + location * sizeof(inode_t));
+
+  return child;
+}
+
 // remove the child from parent; the function is called by both
 // File_Unlink() and Dir_Unlink(); the function returns 0 if success,
 // -1 if general error, -2 if directory not empty, -3 if wrong type
 int remove_inode(int type, int parent_inode, int child_inode) {
-  /* YOUR CODE */
-  return -1;
+
+  if(type == 0){
+    char readBuffer[SECTOR_SIZE];
+    inode_t* inode_File = inode_Get(child_inode);
+
+    for(int i = 0; i < 30; i++){
+      int fData =  (unsigned char)file->data[i];
+      if(fData != 0){
+        memset(readBuffer, 0, SECTOR_SIZE);
+        Disk_Write(fData, readBuffer);
+        bitmap_reset(2, 3, fData + 1);
+      }
+    }
+
+    bitmap_reset(1, 1, child_inode + 1);
+
+    inode_t* root =  inode_Get(parent_inode);
+
+    for(int i=0; i < 30; i++){
+      int rData = root->data[i];
+      char storeBuffer[SECTOR_SIZE];
+
+      Disk_Read(rData, storeBuffer);
+
+      for(int j=0; j < 25; j++){
+        dirent_t* allData = (dirent_t*)(storeBuffer + (j * 20));
+        if(allData->inode = child_inode){
+          memset(entry, 0, sizeof(dirent_t));
+          Disk_Write(rData, storeBuffer);
+          return 0;
+        }
+      }
+    }
+    return 0;
+  }else if(type == 1){
+
+    inode_t* root =  inode_Get(parent_inode);
+
+    for(int i=0; i < 30; i++){
+      int rData = root->data[i];
+      char storeBuffer[SECTOR_SIZE];
+
+      Disk_Read(rData, storeBuffer);
+
+      for(int j=0; j < 25; j++){
+        dirent_t* allData = (dirent_t*)(storeBuffer + (j * 20));
+        if(allData->inode = child_inode){
+          memset(entry, 0, sizeof(dirent_t));
+          Disk_Write(rData, storeBuffer);
+          return 0;
+        }
+      }
+    }
+    return 0;
+  }else if(type == -1){ return -3}
+
+  return FAIL;
 }
 
 // representing an open file
@@ -408,113 +575,111 @@ int new_file_fd() {
 int FS_Boot(char* backstore_fname) {
   dprintf("FS_Boot('%s'):\n", backstore_fname);
   // initialize a new disk (this is a simulated disk)
-  if(Disk_Init() < 0) {
+  if(Disk_Init() < 0) {                                                     // *NOTE* and allocates the space into variable disk
     dprintf("... disk init failed\n");
     osErrno = E_GENERAL;
     return -1;
   }
   dprintf("... disk initialized\n");
-  
+
   // we should copy the filename down; if not, the user may change the
   // content pointed to by 'backstore_fname' after calling this function
-  strncpy(bs_filename, backstore_fname, 1024);
+  strncpy(bs_filename, backstore_fname, 1024);                              // *NOTE* Copy file name into bs_filename
   bs_filename[1023] = '\0'; // for safety
-  
+
   // we first try to load disk from this file
-  if(Disk_Load(bs_filename) < 0) {
+  if(Disk_Load(bs_filename) < 0) { 
     dprintf("... load disk from file '%s' failed\n", bs_filename);
 
     // if we can't open the file; it means the file does not exist, we
     // need to create a new file system on disk
-    if(diskErrno == E_OPENING_FILE) {
+    if(diskErrno == E_OPENING_FILE) {                                       // *NOTE* fopen() == NULL
       dprintf("... couldn't open file, create new file system\n");
 
       // format superblock
       char buf[SECTOR_SIZE];
       memset(buf, 0, SECTOR_SIZE);
       *(int*)buf = OS_MAGIC;
-      if(Disk_Write(SUPERBLOCK_START_SECTOR, buf) < 0) {
-	dprintf("... failed to format superblock\n");
-	osErrno = E_GENERAL;
-	return -1;
+      if(Disk_Write(SUPERBLOCK_START_SECTOR, buf) < 0) {                    // *NOTE* copy the buffer into Disk+superblock_start
+        dprintf("... failed to format superblock\n");
+        osErrno = E_GENERAL;
+        return -1;
       }
       dprintf("... formatted superblock (sector %d)\n", SUPERBLOCK_START_SECTOR);
 
       // format inode bitmap (reserve the first inode to root)
-      bitmap_init(INODE_BITMAP_START_SECTOR, INODE_BITMAP_SECTORS, 1);
-      dprintf("... formatted inode bitmap (start=%d, num=%d)\n",
+      bitmap_init(INODE_BITMAP_START_SECTOR, INODE_BITMAP_SECTORS, 1);      // *NOTE* FIRST FUNCTION TO DEFINE
+      dprintf("... formatted inode bitmap (start=%d, num=%d)\n",            // Only the first bit was set to 1 the rest are set to 0 
 	     (int)INODE_BITMAP_START_SECTOR, (int)INODE_BITMAP_SECTORS);
-      
+
       // format sector bitmap (reserve the first few sectors to
       // superblock, inode bitmap, sector bitmap, and inode table)
       bitmap_init(SECTOR_BITMAP_START_SECTOR, SECTOR_BITMAP_SECTORS,
 		  DATABLOCK_START_SECTOR);
       dprintf("... formatted sector bitmap (start=%d, num=%d)\n",
 	     (int)SECTOR_BITMAP_START_SECTOR, (int)SECTOR_BITMAP_SECTORS);
-      
+
       // format inode tables
       for(int i=0; i<INODE_TABLE_SECTORS; i++) {
-	memset(buf, 0, SECTOR_SIZE);
-	if(i==0) {
-	  // the first inode table entry is the root directory
-	  ((inode_t*)buf)->size = 0;
-	  ((inode_t*)buf)->type = 1;
-	}
-	if(Disk_Write(INODE_TABLE_START_SECTOR+i, buf) < 0) {
-	  dprintf("... failed to format inode table\n");
-	  osErrno = E_GENERAL;
-	  return -1;
-	}
+        memset(buf, 0, SECTOR_SIZE);
+        if(i==0) {
+          // the first inode table entry is the root directory
+          ((inode_t*)buf)->size = 0;
+          ((inode_t*)buf)->type = 1;
+          } 
+        if(Disk_Write(INODE_TABLE_START_SECTOR+i, buf) < 0) {               // *NOTE* write what in buffer to Inode_start sector
+          dprintf("... failed to format inode table\n");
+          osErrno = E_GENERAL;
+          return -1;
+          }
       }
-      dprintf("... formatted inode table (start=%d, num=%d)\n",
-	     (int)INODE_TABLE_START_SECTOR, (int)INODE_TABLE_SECTORS);
-      
+      dprintf("... formatted inode table (start=%d, num=%d)\n", (int)INODE_TABLE_START_SECTOR, (int)INODE_TABLE_SECTORS);
+
       // we need to synchronize the disk to the backstore file (so
       // that we don't lose the formatted disk)
-      if(Disk_Save(bs_filename) < 0) {
-	// if can't write to file, something's wrong with the backstore
-	dprintf("... failed to save disk to file '%s'\n", bs_filename);
-	osErrno = E_GENERAL;
-	return -1;
+      if(Disk_Save(bs_filename) < 0) {                                      // *NOTE* save current changes to bs_filename to disk 
+        // if can't write to file, something's wrong with the backstore
+        dprintf("... failed to save disk to file '%s'\n", bs_filename);
+        osErrno = E_GENERAL;
+        return -1;
       } else {
-	// everything's good now, boot is successful
-	dprintf("... successfully formatted disk, boot successful\n");
-	memset(open_files, 0, MAX_OPEN_FILES*sizeof(open_file_t));
-	return 0;
+        // everything's good now, boot is successful
+        dprintf("... successfully formatted disk, boot successful\n");
+        memset(open_files, 0, MAX_OPEN_FILES*sizeof(open_file_t));
+        return 0;
+        }
+     } else {
+       // something wrong loading the file: invalid param or error reading
+       dprintf("... couldn't read file '%s', boot failed\n", bs_filename);
+       osErrno = E_GENERAL;
+       return -1;
       }
-    } else {
-      // something wrong loading the file: invalid param or error reading
-      dprintf("... couldn't read file '%s', boot failed\n", bs_filename);
-      osErrno = E_GENERAL; 
-      return -1;
-    }
-  } else {
-    dprintf("... load disk from file '%s' successful\n", bs_filename);
-    
+   } else {                                                                // *NOTE* we execute fread() and read the disk into memory  
+    dprintf("... load disk from file '%s' successful\n", bs_filename);     
     // we successfully loaded the disk, we need to do two more checks,
     // first the file size must be exactly the size as expected (thiis
     // supposedly should be folded in Disk_Load(); and it's not)
     int sz = 0;
     FILE* f = fopen(bs_filename, "r");
     if(f) {
-      fseek(f, 0, SEEK_END);
-      sz = ftell(f);
+      fseek(f, 0, SEEK_END);                                                // *NOTE* Sets the file position of the 'f' to the given offset. 
+      sz = ftell(f);                                                        // *NOTE* return the current file position of the stream 'f'
       fclose(f);
-    }
+     }
     if(sz != SECTOR_SIZE*TOTAL_SECTORS) {
       dprintf("... check size of file '%s' failed\n", bs_filename);
       osErrno = E_GENERAL;
       return -1;
-    }
+      }
     dprintf("... check size of file '%s' successful\n", bs_filename);
-    
+
     // check magic
-    if(check_magic()) {
+    if(check_magic()) {                                                      // *NOTE* see if magic number is present
       // everything's good by now, boot is successful
       dprintf("... check magic successful\n");
-      memset(open_files, 0, MAX_OPEN_FILES*sizeof(open_file_t));
+      memset(open_files, 0, MAX_OPEN_FILES*sizeof(open_file_t));             // *NOTE* 0 is copied into the open file and location Max_open_files
       return 0;
-    } else {      
+    } else {
       // mismatched magic number
       dprintf("... check magic failed, boot failed\n");
       osErrno = E_GENERAL;
@@ -542,7 +707,19 @@ int File_Create(char* file) {
 }
 
 int File_Unlink(char* file) {
-  /* YOUR CODE */
+
+  int child;
+  char name[MAX_NAME];
+  int root = follow_path(pathname, &child, name);
+
+  if(child < 1){
+    osErrno = E_NO_SUCH_FILE;
+    return -1;
+  }else if(is_file_open(child) == 1){
+    osErrno = E_FILE_IN_USE;
+    return -1;
+  }else if(remove_inode(0, root, child) >= 0){ return 0; }
+
   return -1;
 }
 
@@ -587,7 +764,7 @@ int File_Open(char* file) {
     dprintf("... file '%s' is not found\n", file);
     osErrno = E_NO_SUCH_FILE;
     return -1;
-  }  
+  }
 }
 
 int File_Read(int fd, void* buffer, int size) {
@@ -596,13 +773,68 @@ int File_Read(int fd, void* buffer, int size) {
 }
 
 int File_Write(int fd, void* buffer, int size) {
-  /* YOUR CODE */
-  return -1;
+
+  int start = open_files[fd].pos;
+  int currentPosition = open_files[fd].pos / SECTOR_SIZE;
+  int final = currentPosition + ((size + open_files[fd].pos + SECTOR_SIZE -1) / SECTOR_SIZE);
+
+  if(fd < 0 && fd > MAX_OPEN_FILES){
+    osErrno = E_NO_SPACE;
+    return FAIL;
+  }else if(open_files[fd].inode < 1){
+    osErrno = E_BAD_FD;
+    return FAIL;
+  }else if(final > 29){
+    osErrno = E_FILE_TOO_BIG;
+    return FAIL:
+  }
+
+  inode_t* inode = inode_Get(open_files[fd].inode);
+
+  for(int i = currentPosition; i < final; i++){
+    char buffer[SECTOR_SIZE];
+    int iData = inode->data[i];
+
+    if(iData == 0){
+      iData = bitmap_first_unused(SECTOR_BITMAP_START_SECTOR, SECTOR_BITMAP_SECTORS, SECTOR_BITMAP_SIZE);
+    }
+
+    if(open_files[fd].pos == 0){
+      if(size >= SECTOR_SIZE){
+        memcpy(buffer, (buffer + i * SECTOR_SIZE), SECTOR_SIZE);
+        size = size - SECTOR_SIZE;
+      }else{
+        memcpy(buffer, (buffer + i * SECTOR_SIZE), size);
+        size = 0;
+      }
+      Disk_Write(iData, buffer);
+    }else{
+      Disk_Read(iData, buffer);
+      memcpy(buffer, (buffer + open_files[fd].size), SECTOR_SIZE - open_files[fd].size);
+      Disk_Write(iData, buffer);
+      size = size - (SECTOR_SIZE - open_files[fd].size);
+      open_files[fd].pos = 0;
+    }
+  }
+
+  open_files[fd].pos = start + size;
+  return size;
+
+  return FAIL;
 }
 
 int File_Seek(int fd, int offset) {
-  /* YOUR CODE */
-  return 0;
+
+  if(is_file_open(open_files[fd].inode) != 1){
+    osErrno = E_BAD_FD;
+    return -1;
+  }else if(open_files[fd].size < offset || open_files[fd].size < 0){
+    osErrno = E_SEEK_OUT_OF_BOUNDS;
+    return -1;
+  }
+
+  open_files[fd].pos = offset;
+  return open_files[fd].pos;
 }
 
 int File_Close(int fd) {
@@ -642,4 +874,3 @@ int Dir_Read(char* path, void* buffer, int size) {
   /* YOUR CODE */
   return -1;
 }
-
