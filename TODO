@@ -1,9 +1,39 @@
+--------------------------------------------------------------------------------------------------------
+Execution of main.c
+FS_Boot is first called inside of main.c
+ -> and the disk is intitalize
+ -> then its filename is copied to a variable and the file is then opened and set to read
+ -> buffer is created and sector size is cleared and set to 0 
+ -> if its a new file then open and then this happens
+    -> buf is then set to OS_Magic number
+    -> Disk_Wirte is called and buffer is written to sector by calling memcpy 
+    -> use bitmap_init to 
+ -> else file was not null and so we need to check a few things 
+    -> check the size of file equals
+    -> see if the magic number is there 
+
+FS_Sync() is the next thing called in main.c 
+ -> If any of the methods within Disk_Save are true true then it should fail to save disk to file. 
+ -> else then the file bs_filename was successfully saved to the disk
+--------------------------------------------------------------------------------------------------------
+Execution of simple-test.c
+
+--------------------------------------------------------------------------------------------------------
 // Understanding LibDisk.c 
     Disk_Init()
-    -> disk is of type sector_t and on in line 32 they are allocating the  
+    -> disk is of type sector_t and on in line 31 they are allocating the  
     memory necessary. 
     -> return -1 if someting went wrong and return 0 if memory allocation went 
     right.
+
+    Disk_Save()
+           fwrite(disk, sizeof(sector_t), TOTAL_SECTORS, diskFile)
+    size_t fwrite(const void *ptr, size_t size, size_t nmemb, FILE *stream)
+        -> ptr − This is the pointer to the array of elements to be written.
+        -> size − This is the size in bytes of each element to be written.
+        -> nmemb − This is the number of elements, each one with a size of size bytes.
+        -> stream − This is the pointer to a FILE object that specifies an output stream.
+    -> disk is the global variable of our memory 
 
 // Functions To Define Inside of LibFS.c:
 

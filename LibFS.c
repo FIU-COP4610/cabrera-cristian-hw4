@@ -115,13 +115,14 @@ static int check_magic() {
 // sector; all bits should be set to zero except that the first
 // 'nbits' number of bits are set to one
 static void bitmap_init(int start, int num, int nbits) {
-
 	int totalBits = SECTOR_SIZE*8;
+
 	for(int i = start; i < start+num; i++){
 		if(nbits > totalBits){
       //save_bits_to_bitmap
 			nbits -= totalBits;
 		}else {
+
       //save_bits_to_bitmap
 			nbits = 0;
 		}
@@ -501,7 +502,7 @@ int new_file_fd() {
 int FS_Boot(char* backstore_fname) {
   dprintf("FS_Boot('%s'):\n", backstore_fname);
   // initialize a new disk (this is a simulated disk)
-  if(Disk_Init() < 0) {
+  if(Disk_Init() < 0) {                                                     // *NOTE* and allocates the space into variable disk
     dprintf("... disk init failed\n");
     osErrno = E_GENERAL;
     return -1;
@@ -510,32 +511,32 @@ int FS_Boot(char* backstore_fname) {
 
   // we should copy the filename down; if not, the user may change the
   // content pointed to by 'backstore_fname' after calling this function
-  strncpy(bs_filename, backstore_fname, 1024);
+  strncpy(bs_filename, backstore_fname, 1024);                              // *NOTE* Copy file name into bs_filename
   bs_filename[1023] = '\0'; // for safety
 
   // we first try to load disk from this file
-  if(Disk_Load(bs_filename) < 0) {
+  if(Disk_Load(bs_filename) < 0) { 
     dprintf("... load disk from file '%s' failed\n", bs_filename);
 
     // if we can't open the file; it means the file does not exist, we
     // need to create a new file system on disk
-    if(diskErrno == E_OPENING_FILE) {
+    if(diskErrno == E_OPENING_FILE) {                                       // *NOTE* fopen() == NULL
       dprintf("... couldn't open file, create new file system\n");
 
       // format superblock
       char buf[SECTOR_SIZE];
       memset(buf, 0, SECTOR_SIZE);
       *(int*)buf = OS_MAGIC;
-      if(Disk_Write(SUPERBLOCK_START_SECTOR, buf) < 0) {
-	dprintf("... failed to format superblock\n");
-	osErrno = E_GENERAL;
-	return -1;
+      if(Disk_Write(SUPERBLOCK_START_SECTOR, buf) < 0) {                    // *NOTE* copy the buffer into Disk+superblock_start
+        dprintf("... failed to format superblock\n");
+        osErrno = E_GENERAL;
+        return -1;
       }
       dprintf("... formatted superblock (sector %d)\n", SUPERBLOCK_START_SECTOR);
 
       // format inode bitmap (reserve the first inode to root)
-      bitmap_init(INODE_BITMAP_START_SECTOR, INODE_BITMAP_SECTORS, 1);
-      dprintf("... formatted inode bitmap (start=%d, num=%d)\n",
+      bitmap_init(INODE_BITMAP_START_SECTOR, INODE_BITMAP_SECTORS, 1);      // *NOTE* FIRST FUNCTION TO DEFINE
+      dprintf("... formatted inode bitmap (start=%d, num=%d)\n",            // Only the first bit was set to 1 the rest are set to 0 
 	     (int)INODE_BITMAP_START_SECTOR, (int)INODE_BITMAP_SECTORS);
 
       // format sector bitmap (reserve the first few sectors to
@@ -547,65 +548,63 @@ int FS_Boot(char* backstore_fname) {
 
       // format inode tables
       for(int i=0; i<INODE_TABLE_SECTORS; i++) {
-	memset(buf, 0, SECTOR_SIZE);
-	if(i==0) {
-	  // the first inode table entry is the root directory
-	  ((inode_t*)buf)->size = 0;
-	  ((inode_t*)buf)->type = 1;
-	}
-	if(Disk_Write(INODE_TABLE_START_SECTOR+i, buf) < 0) {
-	  dprintf("... failed to format inode table\n");
-	  osErrno = E_GENERAL;
-	  return -1;
-	}
+        memset(buf, 0, SECTOR_SIZE);
+        if(i==0) {
+          // the first inode table entry is the root directory
+          ((inode_t*)buf)->size = 0;
+          ((inode_t*)buf)->type = 1;
+          } 
+        if(Disk_Write(INODE_TABLE_START_SECTOR+i, buf) < 0) {               // *NOTE* write what in buffer to Inode_start sector
+          dprintf("... failed to format inode table\n");
+          osErrno = E_GENERAL;
+          return -1;
+          }
       }
-      dprintf("... formatted inode table (start=%d, num=%d)\n",
-	     (int)INODE_TABLE_START_SECTOR, (int)INODE_TABLE_SECTORS);
+      dprintf("... formatted inode table (start=%d, num=%d)\n", (int)INODE_TABLE_START_SECTOR, (int)INODE_TABLE_SECTORS);
 
       // we need to synchronize the disk to the backstore file (so
       // that we don't lose the formatted disk)
-      if(Disk_Save(bs_filename) < 0) {
-	// if can't write to file, something's wrong with the backstore
-	dprintf("... failed to save disk to file '%s'\n", bs_filename);
-	osErrno = E_GENERAL;
-	return -1;
+      if(Disk_Save(bs_filename) < 0) {                                      // *NOTE* save current changes to bs_filename to disk 
+        // if can't write to file, something's wrong with the backstore
+        dprintf("... failed to save disk to file '%s'\n", bs_filename);
+        osErrno = E_GENERAL;
+        return -1;
       } else {
-	// everything's good now, boot is successful
-	dprintf("... successfully formatted disk, boot successful\n");
-	memset(open_files, 0, MAX_OPEN_FILES*sizeof(open_file_t));
-	return 0;
+        // everything's good now, boot is successful
+        dprintf("... successfully formatted disk, boot successful\n");
+        memset(open_files, 0, MAX_OPEN_FILES*sizeof(open_file_t));
+        return 0;
+        }
+     } else {
+       // something wrong loading the file: invalid param or error reading
+       dprintf("... couldn't read file '%s', boot failed\n", bs_filename);
+       osErrno = E_GENERAL;
+       return -1;
       }
-    } else {
-      // something wrong loading the file: invalid param or error reading
-      dprintf("... couldn't read file '%s', boot failed\n", bs_filename);
-      osErrno = E_GENERAL;
-      return -1;
-    }
-  } else {
-    dprintf("... load disk from file '%s' successful\n", bs_filename);
-
+   } else {                                                                // *NOTE* we execute fread() and read the disk into memory  
+    dprintf("... load disk from file '%s' successful\n", bs_filename);     
     // we successfully loaded the disk, we need to do two more checks,
     // first the file size must be exactly the size as expected (thiis
     // supposedly should be folded in Disk_Load(); and it's not)
     int sz = 0;
     FILE* f = fopen(bs_filename, "r");
     if(f) {
-      fseek(f, 0, SEEK_END);
-      sz = ftell(f);
+      fseek(f, 0, SEEK_END);                                                // *NOTE* Sets the file position of the 'f' to the given offset. 
+      sz = ftell(f);                                                        // *NOTE* return the current file position of the stream 'f'
       fclose(f);
-    }
+     }
     if(sz != SECTOR_SIZE*TOTAL_SECTORS) {
       dprintf("... check size of file '%s' failed\n", bs_filename);
       osErrno = E_GENERAL;
       return -1;
-    }
+      }
     dprintf("... check size of file '%s' successful\n", bs_filename);
 
     // check magic
-    if(check_magic()) {
+    if(check_magic()) {                                                      // *NOTE* see if magic number is present
       // everything's good by now, boot is successful
       dprintf("... check magic successful\n");
-      memset(open_files, 0, MAX_OPEN_FILES*sizeof(open_file_t));
+      memset(open_files, 0, MAX_OPEN_FILES*sizeof(open_file_t));             // *NOTE* 0 is copied into the open file and location Max_open_files
       return 0;
     } else {
       // mismatched magic number

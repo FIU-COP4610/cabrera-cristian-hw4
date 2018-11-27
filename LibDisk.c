@@ -75,8 +75,7 @@ int Disk_Save(char* file) {
  * Loads a current disk image from disk into memory - requires that
  * the disk be created first.
  */
-int Disk_Load(char* file)
-{
+int Disk_Load(char* file) {
   FILE* diskFile;
     
   // error check
@@ -109,8 +108,7 @@ int Disk_Load(char* file)
  * Reads a single sector from "disk" and puts it into a buffer provided
  * by the user.
  */
-int Disk_Read(int sector, char* buffer)
-{
+int Disk_Read(int sector, char* buffer) {
   // quick error checks
   if ((sector < 0) || (sector >= TOTAL_SECTORS) || (buffer == NULL)) {
     diskErrno = E_INVALID_PARAM;
@@ -131,8 +129,7 @@ int Disk_Read(int sector, char* buffer)
  *
  * Writes a single sector from memory to "disk".
  */
-int Disk_Write(int sector, char* buffer) 
-{
+int Disk_Write(int sector, char* buffer) {
   // quick error checks
   if((sector < 0) || (sector >= TOTAL_SECTORS) || (buffer == NULL)) {
     diskErrno = E_INVALID_PARAM;
