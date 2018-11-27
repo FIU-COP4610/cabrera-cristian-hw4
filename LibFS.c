@@ -482,10 +482,10 @@ int create_file_or_directory(int type, char* pathname) {
 
 /*
 *
-* HELPER FUNCTION
+* HELPER FUNCTION FOR REMOVE_INODE
 *
 */
-inode_t* inode_Get(int childNode){
+inode_t* inode_Get(int childNode){                                                                  // FIND THE CHILD NODE AND RETURN A POINTER TO THAT NODE 
 
   int sector = (INODE_TABLE_START_SECTOR + (childNode/INODES_PER_SECTOR));                          // Find each index of a node
   char storeBuffer[SECTOR_SIZE];                                                                    // *NOTE* Create a buffer to store the node
@@ -503,14 +503,14 @@ inode_t* inode_Get(int childNode){
 // -1 if general error, -2 if directory not empty, -3 if wrong type
 int remove_inode(int type, int parent_inode, int child_inode) {
 
-  if(type == 0){
+  if(type == 0){                                                                                    // *NOTES* 0 will be logic for files
     char readBuffer[SECTOR_SIZE];
-    inode_t* inode_File = inode_Get(child_inode);
+    inode_t* inode_File = inode_Get(child_inode);                                                   // POINTER TO THE CHILD NODE WITH THE DISK 
 
     for(int i = 0; i < 30; i++){
-      int fData =  (unsigned char)inode_File->data[i];
-      if(fData != 0){
-        memset(readBuffer, 0, SECTOR_SIZE);
+      int fData =  (unsigned char)inode_File->data[i];                                              // access the data of that node and if it contains inforamtion 
+      if(fData != 0){ 
+        memset(readBuffer, 0, SECTOR_SIZE);                                                         // set it to all 0s
         Disk_Write(fData, readBuffer);
         bitmap_reset(2, 3, fData + 1);
       }
@@ -536,7 +536,7 @@ int remove_inode(int type, int parent_inode, int child_inode) {
       }
     }
     return 0;
-  }else if(type == 1){
+  }else if(type == 1){                                                                              // *NOTES* 1 will be logic for directories
 
     inode_t* root =  inode_Get(parent_inode);
 
