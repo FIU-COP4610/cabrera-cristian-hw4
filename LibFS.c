@@ -112,6 +112,25 @@ static int check_magic() {
   else return 0;
 }
 
+/*
+* HELPER FUNCTION
+*/
+int toPower(int num, int pow){
+	int answer = 1;
+
+	for(;;){
+		if(pow & 1){
+			answer = answer * num;
+			pow >>= 1;
+		}	
+		if(!pow){
+			break;
+			num = num * num;
+		}
+	}
+	return answer;
+}
+
 // initialize a bitmap with 'num' sectors starting from 'start'
 // sector; all bits should be set to zero except that the first
 // 'nbits' number of bits are set to one
@@ -141,15 +160,15 @@ static int bitmap_first_unused(int start, int num, int nbits) {
 
   for (int i = start; i < start+num; i++){
     int totalBits = SECTOR_SIZE * 8;
-    int totalBytes = SECTOR_SIZE;
+    int totalBytes = totalBits / 8;
 
     Disk_Read(start, readBuffer);
 
     if(nbits > totalBits){
-      nbits =  totalBits
+      nbits =  totalBits;
     }
 
-    if(maxBytes%8 > 0){
+    if(0 < totalBytes%8){
       totalBytes++;
     }
 
@@ -173,7 +192,7 @@ static int bitmap_first_unused(int start, int num, int nbits) {
 
         if(bitAddress == 0){ bitAddress = 7; }
 
-        container = ipow(2, bitAddress-1);
+        container = toPower(2, bitAddress-1);
         readBuffer[i] = readBuffer[i] | container;
 
         Disk_Write(i, readBuffer);
@@ -210,7 +229,7 @@ static int bitmap_reset(int start, int num, int ibit) {
   int bitAddress = address%8;
 
   int tmp2 = loadBuffer[byteAddress];
-  int allOnes = 255 - ipow(2, 7-bitAddress);
+  int allOnes = 255 - toPower(2, 7-bitAddress);
 
 
   loadBuffer[byteAddress] = tmp2 & allOnes;
@@ -491,7 +510,7 @@ int remove_inode(int type, int parent_inode, int child_inode) {
     inode_t* inode_File = inode_Get(child_inode);
 
     for(int i = 0; i < 30; i++){
-      int fData =  (unsigned char)file->data[i];
+      int fData =  (unsigned char)inode_File->data[i];
       if(fData != 0){
         memset(readBuffer, 0, SECTOR_SIZE);
         Disk_Write(fData, readBuffer);
@@ -512,7 +531,7 @@ int remove_inode(int type, int parent_inode, int child_inode) {
       for(int j=0; j < 25; j++){
         dirent_t* allData = (dirent_t*)(storeBuffer + (j * 20));
         if(allData->inode = child_inode){
-          memset(entry, 0, sizeof(dirent_t));
+          memset(allData, 0, sizeof(dirent_t));
           Disk_Write(rData, storeBuffer);
           return 0;
         }
@@ -532,14 +551,14 @@ int remove_inode(int type, int parent_inode, int child_inode) {
       for(int j=0; j < 25; j++){
         dirent_t* allData = (dirent_t*)(storeBuffer + (j * 20));
         if(allData->inode = child_inode){
-          memset(entry, 0, sizeof(dirent_t));
+          memset(allData, 0, sizeof(dirent_t));
           Disk_Write(rData, storeBuffer);
           return 0;
         }
       }
     }
     return 0;
-  }else if(type == -1){ return -3}
+  }else if(type == -1){ return -3; }
 
   return FAIL;
 }
@@ -710,7 +729,7 @@ int File_Unlink(char* file) {
 
   int child;
   char name[MAX_NAME];
-  int root = follow_path(pathname, &child, name);
+  int root = follow_path(file, &child, name);
 
   if(child < 1){
     osErrno = E_NO_SUCH_FILE;
@@ -786,7 +805,7 @@ int File_Write(int fd, void* buffer, int size) {
     return FAIL;
   }else if(final > 29){
     osErrno = E_FILE_TOO_BIG;
-    return FAIL:
+    return FAIL;
   }
 
   inode_t* inode = inode_Get(open_files[fd].inode);
