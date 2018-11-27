@@ -8,6 +8,7 @@
 
 // set to 1 to have detailed debug print-outs and 0 to have none
 #define FSDEBUG 0
+#define FAIL -1
 
 #if FSDEBUG
 #define dprintf printf
@@ -462,13 +463,85 @@ int create_file_or_directory(int type, char* pathname) {
   }
 }
 
+/*
+*
+HELPER FUNCTION
+*
+*/
+inode_t* inode_Get(int childNode){
+
+  int sector =  (INODE_TABLE_START_SECTOR + childNode) / INODES_PER_SECTOR;
+  char storeBuffer[SECTOR_SIZE];
+
+  Disk_Read(sector, storeBuffer);
+
+  int location = childNode - ((sector - INODE_TABLE_SECTORS) * INODES_PER_SECTOR);
+  inode_t* child =  (inode_t*)(storeBuffer + location * sizeof(inode_t));
+
+  return child;
+}
+
 // remove the child from parent; the function is called by both
 // File_Unlink() and Dir_Unlink(); the function returns 0 if success,
 // -1 if general error, -2 if directory not empty, -3 if wrong type
 int remove_inode(int type, int parent_inode, int child_inode) {
 
-  	/* YOUR CODE */
-  return -1;
+  if(type == 0){
+    char readBuffer[SECTOR_SIZE];
+    inode_t* inode_File = inode_Get(child_inode);
+
+    for(int i = 0; i < 30; i++){
+      int fData =  (unsigned char)file->data[i];
+      if(fData != 0){
+        memset(readBuffer, 0, SECTOR_SIZE);
+        Disk_Write(fData, readBuffer);
+        bitmap_reset(2, 3, fData + 1);
+      }
+    }
+
+    bitmap_reset(1, 1, child_inode + 1);
+
+    inode_t* root =  inode_Get(parent_inode);
+
+    for(int i=0; i < 30; i++){
+      int rData = root->data[i];
+      char storeBuffer[SECTOR_SIZE];
+
+      Disk_Read(rData, storeBuffer);
+
+      for(int j=0; j < 25; j++){
+        dirent_t* allData = (dirent_t*)(storeBuffer + (j * 20));
+        if(allData->inode = child_inode){
+          memset(entry, 0, sizeof(dirent_t));
+          Disk_Write(rData, storeBuffer);
+          return 0;
+        }
+      }
+    }
+    return 0;
+  }else if(type == 1){
+
+    inode_t* root =  inode_Get(parent_inode);
+
+    for(int i=0; i < 30; i++){
+      int rData = root->data[i];
+      char storeBuffer[SECTOR_SIZE];
+
+      Disk_Read(rData, storeBuffer);
+
+      for(int j=0; j < 25; j++){
+        dirent_t* allData = (dirent_t*)(storeBuffer + (j * 20));
+        if(allData->inode = child_inode){
+          memset(entry, 0, sizeof(dirent_t));
+          Disk_Write(rData, storeBuffer);
+          return 0;
+        }
+      }
+    }
+    return 0;
+  }else if(type == -1){ return -3}
+
+  return FAIL;
 }
 
 // representing an open file
@@ -646,7 +719,7 @@ int File_Unlink(char* file) {
     osErrno = E_FILE_IN_USE;
     return -1;
   }else if(remove_inode(0, root, child) >= 0){ return 0; }
-  
+
   return -1;
 }
 
@@ -700,13 +773,68 @@ int File_Read(int fd, void* buffer, int size) {
 }
 
 int File_Write(int fd, void* buffer, int size) {
-  /* YOUR CODE */
-  return -1;
+
+  int start = open_files[fd].pos;
+  int currentPosition = open_files[fd].pos / SECTOR_SIZE;
+  int final = currentPosition + ((size + open_files[fd].pos + SECTOR_SIZE -1) / SECTOR_SIZE);
+
+  if(fd < 0 && fd > MAX_OPEN_FILES){
+    osErrno = E_NO_SPACE;
+    return FAIL;
+  }else if(open_files[fd].inode < 1){
+    osErrno = E_BAD_FD;
+    return FAIL;
+  }else if(final > 29){
+    osErrno = E_FILE_TOO_BIG;
+    return FAIL:
+  }
+
+  inode_t* inode = inode_Get(open_files[fd].inode);
+
+  for(int i = currentPosition; i < final; i++){
+    char buffer[SECTOR_SIZE];
+    int iData = inode->data[i];
+
+    if(iData == 0){
+      iData = bitmap_first_unused(SECTOR_BITMAP_START_SECTOR, SECTOR_BITMAP_SECTORS, SECTOR_BITMAP_SIZE);
+    }
+
+    if(open_files[fd].pos == 0){
+      if(size >= SECTOR_SIZE){
+        memcpy(buffer, (buffer + i * SECTOR_SIZE), SECTOR_SIZE);
+        size = size - SECTOR_SIZE;
+      }else{
+        memcpy(buffer, (buffer + i * SECTOR_SIZE), size);
+        size = 0;
+      }
+      Disk_Write(iData, buffer);
+    }else{
+      Disk_Read(iData, buffer);
+      memcpy(buffer, (buffer + open_files[fd].size), SECTOR_SIZE - open_files[fd].size);
+      Disk_Write(iData, buffer);
+      size = size - (SECTOR_SIZE - open_files[fd].size);
+      open_files[fd].pos = 0;
+    }
+  }
+
+  open_files[fd].pos = start + size;
+  return size;
+
+  return FAIL;
 }
 
 int File_Seek(int fd, int offset) {
-  /* YOUR CODE */
-  return 0;
+
+  if(is_file_open(open_files[fd].inode) != 1){
+    osErrno = E_BAD_FD;
+    return -1;
+  }else if(open_files[fd].size < offset || open_files[fd].size < 0){
+    osErrno = E_SEEK_OUT_OF_BOUNDS;
+    return -1;
+  }
+
+  open_files[fd].pos = offset;
+  return open_files[fd].pos;
 }
 
 int File_Close(int fd) {
